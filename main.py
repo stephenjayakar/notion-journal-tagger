@@ -18,6 +18,7 @@ notion_client = NotionClient(auth=os.environ.get("NOTION_API_KEY"))
 @dataclass
 class PageData:
     page_id: str
+    content: Optional[str] = None
     new_tags: Optional[List[str]] = None
     written: bool = False
 
@@ -46,7 +47,9 @@ def get_notion_page_content(page_id: str) -> str:
     content = ""
     for block in block_children["results"]:
         if block["type"] == "paragraph":
-            content += block["paragraph"]["rich_text"][0]["plain_text"] + "\n\n"
+            rich_text = block["paragraph"]["rich_text"]
+            if rich_text:  # Check if rich_text is not empty
+                content += rich_text[0]["plain_text"] + "\n\n"
     
     return content.strip()
 
@@ -72,8 +75,8 @@ def get_tags_from_ai(content: str, tags: List[str]) -> List[str]:
         messages=messages,
         response_format={
             "type": "json_schema",
-            "strict": True,
-            "schema": {
+            "json_schema": {
+                "schema": {
                 "type": "object",
                 "properties": {
                     "tags": {
@@ -86,7 +89,9 @@ def get_tags_from_ai(content: str, tags: List[str]) -> List[str]:
                 },
                 "required": ["tags"],
                 "additionalProperties": False
-            }
+            },
+            "strict": True,
+        }
         }
     )
 
@@ -104,6 +109,7 @@ def update_notion_page(page_id: str, tags: List[str]):
 def print_debug_data(data: List[PageData]):
     for page_data in data:
         print(f"Page ID: {page_data.page_id}")
+        print(f"Content: {page_data.content[:100]}..." if page_data.content else "No content")
         print(f"New Tags: {page_data.new_tags}")
         print(f"Written: {page_data.written}")
         print("---")
@@ -118,17 +124,19 @@ def main():
 
     if phase == 'debug':
         if len(sys.argv) < 3:
-            print("For debug mode, please provide the phase file to load (1, 2, or 3)")
+            print("For debug mode, please provide the phase file to load (1, 2, 3, or 4)")
             sys.exit(1)
         debug_phase = sys.argv[2]
         if debug_phase == '1':
             filename = 'page_data.pkl'
         elif debug_phase == '2':
-            filename = 'page_data_with_tags.pkl'
+            filename = 'page_data_with_content.pkl'
         elif debug_phase == '3':
+            filename = 'page_data_with_tags.pkl'
+        elif debug_phase == '4':
             filename = 'page_data_final.pkl'
         else:
-            print("Invalid debug phase. Please use 1, 2, or 3.")
+            print("Invalid debug phase. Please use 1, 2, 3, or 4.")
             sys.exit(1)
         
         data = load_data(filename)
@@ -150,13 +158,22 @@ def main():
         data = load_data('page_data.pkl')
         for i, page_data in enumerate(data):
             content = get_notion_page_content(page_data.page_id)
-            new_tags = get_tags_from_ai(content, tags)
-            data[i].new_tags = new_tags
+            data[i].content = content
             print(f"Processed {i+1}/{len(data)} pages")
-        save_data(data, 'page_data_with_tags.pkl')
-        print(f"Phase 2 complete. Tags assigned to {len(data)} pages.")
+        save_data(data, 'page_data_with_content.pkl')
+        print(f"Phase 2 complete. Content retrieved for {len(data)} pages.")
 
     elif phase == '3':
+        data = load_data('page_data_with_content.pkl')
+        for i, page_data in enumerate(data):
+            if page_data.content:
+                new_tags = get_tags_from_ai(page_data.content, tags)
+                data[i].new_tags = new_tags
+            print(f"Processed {i+1}/{len(data)} pages")
+        save_data(data, 'page_data_with_tags.pkl')
+        print(f"Phase 3 complete. Tags assigned to {len([d for d in data if d.new_tags])} pages.")
+
+    elif phase == '4':
         data = load_data('page_data_with_tags.pkl')
         for i, page_data in enumerate(data):
             if not page_data.written and page_data.new_tags:
@@ -164,10 +181,10 @@ def main():
                 data[i].written = True
             print(f"Processed {i+1}/{len(data)} pages")
         save_data(data, 'page_data_final.pkl')
-        print(f"Phase 3 complete. Tags written to Notion for {len([d for d in data if d.written])} pages.")
+        print(f"Phase 4 complete. Tags written to Notion for {len([d for d in data if d.written])} pages.")
 
     else:
-        print("Invalid phase. Please use 1, 2, 3, or debug.")
+        print("Invalid phase. Please use 1, 2, 3, 4, or debug.")
 
 if __name__ == "__main__":
     main()
