@@ -82,6 +82,13 @@ def update_notion_page(page_id: str, tags: List[str]):
         }
     )
 
+def print_debug_data(data: List[PageData]):
+    for page_data in data:
+        print(f"Page ID: {page_data.page_id}")
+        print(f"New Tags: {page_data.new_tags}")
+        print(f"Written: {page_data.written}")
+        print("---")
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python main.py <phase> [database_id]")
@@ -89,6 +96,26 @@ def main():
 
     phase = sys.argv[1]
     tags = read_tags_from_file('tags.txt')
+
+    if phase == 'debug':
+        if len(sys.argv) < 3:
+            print("For debug mode, please provide the phase file to load (1, 2, or 3)")
+            sys.exit(1)
+        debug_phase = sys.argv[2]
+        if debug_phase == '1':
+            filename = 'page_data.pkl'
+        elif debug_phase == '2':
+            filename = 'page_data_with_tags.pkl'
+        elif debug_phase == '3':
+            filename = 'page_data_final.pkl'
+        else:
+            print("Invalid debug phase. Please use 1, 2, or 3.")
+            sys.exit(1)
+        
+        data = load_data(filename)
+        print(f"Debug mode: Loaded {filename}")
+        print_debug_data(data)
+        sys.exit(0)
 
     if phase == '1':
         if len(sys.argv) < 3:
@@ -121,7 +148,7 @@ def main():
         print(f"Phase 3 complete. Tags written to Notion for {len([d for d in data if d.written])} pages.")
 
     else:
-        print("Invalid phase. Please use 1, 2, or 3.")
+        print("Invalid phase. Please use 1, 2, 3, or debug.")
 
 if __name__ == "__main__":
     main()
