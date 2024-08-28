@@ -67,12 +67,31 @@ def get_tags_from_ai(content: str, tags: List[str]) -> List[str]:
         {"role": "user", "content": user_message}
     ]
 
-    response = openai_client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages
+    completion = openai_client.chat.completions.create(
+        model="gpt-4o-2024-08-06",
+        messages=messages,
+        response_format={
+            "type": "json_schema",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "tags": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": tags
+                        }
+                    }
+                },
+                "required": ["tags"],
+                "additionalProperties": False
+            }
+        }
     )
 
-    return response.choices[0].message.content.strip().split(', ')
+    ai_response = completion.choices[0].message.content
+    return ai_response['tags']
 
 def update_notion_page(page_id: str, tags: List[str]):
     notion_client.pages.update(
