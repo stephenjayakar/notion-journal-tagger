@@ -81,6 +81,9 @@ def get_tags_from_ai(content: str, tags: List[str]) -> List[str]:
         response_format={
             "type": "json_schema",
             "json_schema": {
+                # Generate a unique-ish name for the schema
+                # TODO: Not great in that OpenAI will reuse the same 
+                # schema for the same first 20 chars of tags.
                 "name": "notion-journaler" + ''.join(tags)[:20],
                 "schema": {
                 "type": "object",
@@ -137,7 +140,6 @@ def main():
         if len(sys.argv) < 3:
             print("For debug mode, please provide the phase file to load (1, 2, 3, or 4)")
             sys.exit(1)
-        debug_phase = sys.argv[2]
         content_data = load_data('page_content.pkl')
         tags_data = load_data('page_tags.pkl')
         print(f"Debug mode: Loaded page_content.pkl and page_tags.pkl")
