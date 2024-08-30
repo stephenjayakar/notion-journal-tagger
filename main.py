@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from openai import OpenAI
 from dotenv import load_dotenv
 from notion_client import Client as NotionClient
+import json
 
 load_dotenv()
 
@@ -100,8 +101,8 @@ def get_tags_from_ai(content: str, tags: List[str]) -> List[str]:
         }
     )
 
-    ai_response = completion.choices[0].message.content
-    return ai_response['tags']
+    ai_response_dict = json.loads(completion.choices[0].message.content)
+    return ai_response_dict['tags']
 
 def update_notion_page(page_id: str, tags: List[str]):
     notion_client.pages.update(
