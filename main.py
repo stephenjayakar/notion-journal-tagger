@@ -80,6 +80,7 @@ def get_tags_from_ai(content: str, tags: List[str]) -> List[str]:
         response_format={
             "type": "json_schema",
             "json_schema": {
+                "name": "notion-journaler" + ''.join(tags)[:20],
                 "schema": {
                 "type": "object",
                 "properties": {
