@@ -3,3 +3,4 @@ input.md
 env/
 tags.txt
 output/
+__pycache__/
