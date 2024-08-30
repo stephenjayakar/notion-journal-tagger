@@ -55,7 +55,11 @@ def get_notion_page_content(page_id: str) -> str:
             rich_text = block["paragraph"]["rich_text"]
             if rich_text:  # Check if rich_text is not empty
                 content += rich_text[0]["plain_text"] + "\n\n"
-    
+        elif block["type"] == "bulleted_list_item":
+            rich_text = block["bulleted_list_item"]["rich_text"]
+            if rich_text:  # Check if rich_text is not empty
+                content += "- " + rich_text[0]["plain_text"] + "\n"
+
     return content.strip()
 
 def save_data(data: List, filename: str):
@@ -176,11 +180,34 @@ def main():
 
     elif phase == '4':
         tags_data = load_data('page_tags.pkl')
+
+        # Get the current database schema
+        database = notion_client.databases.retrieve(database_id)
+        existing_tags = [option['name'] for option in database['properties']['Tags']['multi_select']['options']]
+
+        # Add new tags to the database if they don't exist
+        new_tags = set(tags) - set(existing_tags)
+        if new_tags:
+            updated_options = database['properties']['Tags']['multi_select']['options'] + [{"name": tag} for tag in new_tags]
+            notion_client.databases.update(
+                database_id=database_id,
+                properties={
+                    "Tags": {
+                        "multi_select": {
+                            "options": updated_options
+                        }
+                    }
+                }
+            )
+            print(f"Added {len(new_tags)} new tags to the database.")
+
+        # Update pages with their respective tags
         for i, page_tags in enumerate(tags_data):
             if not page_tags.written and page_tags.new_tags:
                 update_notion_page(page_tags.page_id, page_tags.new_tags)
                 tags_data[i].written = True
             print(f"Processed {i+1}/{len(tags_data)} pages")
+
         save_data(tags_data, 'page_tags.pkl')
         print(f"Phase 4 complete. Tags written to Notion for {len([d for d in tags_data if d.written])} pages.")
 
