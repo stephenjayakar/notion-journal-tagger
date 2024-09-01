@@ -32,9 +32,8 @@ def process_single_page(page_id: str):
     print(f"Phase 3 complete. Tags assigned to page {page_id}: {new_tags}.")
 
     # Phase 4: Update the Notion page with the new tags
-    if tags_data.new_tags:
-        update_notion_page(tags_data.page_id, tags_data.new_tags)
-        tags_data.written = True
+    update_notion_page(tags_data.page_id, tags_data.new_tags)
+    tags_data.written = True
     print(f"Phase 4 complete. Tags written to Notion for page {page_id}.")
 
 def load_data(filename: str) -> List:

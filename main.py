@@ -223,7 +223,7 @@ def main():
 
         # Update pages with their respective tags
         for i, page_tags in enumerate(tags_data):
-            if not page_tags.written and page_tags.new_tags:
+            if not page_tags.written:
                 update_notion_page(page_tags.page_id, page_tags.new_tags)
                 tags_data[i].written = True
             print(f"Processed {i+1}/{len(tags_data)} pages")
