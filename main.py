@@ -1,7 +1,7 @@
 import os
 import sys
 import pickle
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -50,7 +50,10 @@ def get_database_pages(database_id: str) -> List[dict]:
         start_cursor = response.get('next_cursor')
     return pages
 
-def get_notion_page_content(page_id: str) -> str:
+def get_notion_page_content(page_id: str) -> Tuple[str, str]:
+    page = notion_client.pages.retrieve(page_id)
+    title = page['properties']['Name']['title'][0]['plain_text'] if page['properties']['Name']['title'] else ''
+    
     block_children = notion_client.blocks.children.list(page_id)
     
     content = ""
@@ -64,7 +67,7 @@ def get_notion_page_content(page_id: str) -> str:
             if rich_text:  # Check if rich_text is not empty
                 content += "- " + rich_text[0]["plain_text"] + "\n"
 
-    return content.strip()
+    return title, content.strip()
 
 def save_data(data: List, filename: str):
     with open(os.path.join('output', filename), 'wb') as f:
@@ -75,16 +78,23 @@ def load_data(filename: str) -> List:
         return pickle.load(f)
 
 def get_tags_from_ai(title: str, content: str, tags: List[str], additional_context: str) -> List[str]:
-    system_message = "You are an AI assistant that labels content with appropriate tags. Please analyze the given title and content and assign relevant tags from the provided list. You can use multiple tags if appropriate."
-    user_message = f"Title: {title}\n\nContent to label:\n\n{content}\n\nAdditional context: {additional_context}\n\nAvailable tags: {', '.join(tags)}\n\nPlease label this content with appropriate tags."
+    system_message = """You are an AI assistant that labels content with appropriate tags. Please analyze the given title and content and assign relevant tags from the provided list. Be conservative in your tag selection:
+    - Only assign tags if there's a medium to strong correlation with the title and content.
+    - It's better to assign fewer tags or even no tags than to assign irrelevant ones.
+    - Consider the context and overall theme of the content, not just keyword matches.
+    - If you're unsure about a tag, it's better to omit it."""
+
+    user_message = f"Title: {title}\n\nContent to label:\n\n{content}\n\nAdditional context: {additional_context}\n\nAvailable tags: {', '.join(tags)}\n\nPlease label this content with appropriate tags, being cautious and selective in your choices."
 
     messages = [
         {"role": "system", "content": system_message},
         {"role": "user", "content": user_message}
     ]
 
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-2024-08-06")  # Default to gpt-4-0613 if not specified
+
     completion = openai_client.chat.completions.create(
-        model="gpt-4o-2024-08-06",
+        model=model,
         messages=messages,
         response_format={
             "type": "json_schema",
@@ -167,7 +177,8 @@ def main():
     elif phase == '2':
         content_data = load_data('page_content.pkl')
         for i, page_content in enumerate(content_data):
-            content = get_notion_page_content(page_content.page_id)
+            title, content = get_notion_page_content(page_content.page_id)
+            content_data[i].title = title
             content_data[i].content = content
             print(f"Processed {i+1}/{len(content_data)} pages")
         save_data(content_data, 'page_content.pkl')

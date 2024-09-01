@@ -3,11 +3,12 @@ import os
 from typing import List
 from main import (
     PageContent, PageTags, read_tags_from_env, get_notion_page_content,
-    get_tags_from_ai, update_notion_page
+    get_tags_from_ai, update_notion_page, read_additional_context_from_env
 )
 
 def process_single_page(page_id: str):
     tags = read_tags_from_env()
+    additional_context = read_additional_context_from_env()
     database_id = os.environ.get("NOTION_DATABASE_ID")
 
     if not database_id:
@@ -18,14 +19,15 @@ def process_single_page(page_id: str):
     content_data = PageContent(page_id)
     tags_data = PageTags(page_id)
 
-    # Phase 2: Retrieve content for the single page
-    content = get_notion_page_content(page_id)
+    # Phase 2: Retrieve content and title for the single page
+    title, content = get_notion_page_content(page_id)
     content_data.content = content
-    print(f"Phase 2 complete. Content retrieved for page {page_id}.")
+    content_data.title = title
+    print(f"Phase 2 complete. Content and title retrieved for page {page_id}.")
 
     # Phase 3: Assign tags using AI for the single page
     if content_data.content:
-        new_tags = get_tags_from_ai(content_data.content, tags)
+        new_tags = get_tags_from_ai(content_data.title, content_data.content, tags, additional_context)
         tags_data.new_tags = new_tags
     print(f"Phase 3 complete. Tags assigned to page {page_id}.")
 
