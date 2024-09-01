@@ -35,3 +35,9 @@ The phases all checkpoint (save files locally) in case something goes wrong, so 
 2. Get all the contents for every page. This is only text & bullet points
 3. Ask ChatGPT 4o what it will label the page. This is using the new structured outputs model
 4. Write these new tags -> Notion. This is an overwrite.
+
+# Methodology / note
+
+I would have provided example of this working, but it's hard to separate since I used this on my personal journal, and my tags are private. Sorry!
+
+Also, I wrote this almost completely using Cursor. Woo!!!
