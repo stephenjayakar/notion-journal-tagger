@@ -94,7 +94,7 @@ def get_tags_from_ai(title: str, content: str, tags: List[str], additional_conte
         {"role": "user", "content": user_message}
     ]
 
-    model = os.environ.get("OPENAI_MODEL", "gpt-4o-2024-08-06")  # Default to gpt-4-0613 if not specified
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-2024-08-06")
 
     completion = openai_client.chat.completions.create(
         model=model,
@@ -129,6 +129,7 @@ def get_tags_from_ai(title: str, content: str, tags: List[str], additional_conte
     return ai_response_dict['tags']
 
 def update_notion_page(page_id: str, tags: List[str]):
+    tags = tags if tags is not None else []
     notion_client.pages.update(
         page_id=page_id,
         properties={
@@ -145,30 +146,7 @@ def print_debug_data(content_data: List[PageContent], tags_data: List[PageTags])
         print(f"Written: {tags.written}")
         print("---")
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python main.py <phase>")
-        sys.exit(1)
-
-    phase = sys.argv[1]
-    tags = read_tags_from_env()
-    additional_context = read_additional_context_from_env()
-    database_id = os.environ.get("NOTION_DATABASE_ID")
-
-    if not database_id:
-        print("Error: NOTION_DATABASE_ID not set in environment variables.")
-        sys.exit(1)
-
-    if phase == 'debug':
-        if len(sys.argv) < 3:
-            print("For debug mode, please provide the phase file to load (1, 2, 3, or 4)")
-            sys.exit(1)
-        content_data = load_data('page_content.pkl')
-        tags_data = load_data('page_tags.pkl')
-        print(f"Debug mode: Loaded page_content.pkl and page_tags.pkl")
-        print_debug_data(content_data, tags_data)
-        sys.exit(0)
-
+def run_phase(phase: str, tags: List[str], additional_context: str, database_id: str):
     if phase == '1':
         pages = get_database_pages(database_id)
         content_data = [PageContent(page['id'], title=page['title']) for page in pages]
@@ -176,6 +154,7 @@ def main():
         save_data(content_data, 'page_content.pkl')
         save_data(tags_data, 'page_tags.pkl')
         print(f"Phase 1 complete. {len(content_data)} pages saved.")
+        return content_data, tags_data
 
     elif phase == '2':
         content_data = load_data('page_content.pkl')
@@ -186,6 +165,7 @@ def main():
             print(f"Processed {i+1}/{len(content_data)} pages")
         save_data(content_data, 'page_content.pkl')
         print(f"Phase 2 complete. Content retrieved for {len(content_data)} pages.")
+        return content_data
 
     elif phase == '3':
         content_data = load_data('page_content.pkl')
@@ -197,6 +177,7 @@ def main():
             print(f"Processed {i+1}/{len(content_data)} pages")
         save_data(tags_data, 'page_tags.pkl')
         print(f"Phase 3 complete. Tags assigned to {len([d for d in tags_data if d.new_tags])} pages.")
+        return tags_data
 
     elif phase == '4':
         tags_data = load_data('page_tags.pkl')
@@ -230,9 +211,39 @@ def main():
 
         save_data(tags_data, 'page_tags.pkl')
         print(f"Phase 4 complete. Tags written to Notion for {len([d for d in tags_data if d.written])} pages.")
+        return tags_data
 
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <phase>")
+        sys.exit(1)
+
+    phase = sys.argv[1]
+    tags = read_tags_from_env()
+    additional_context = read_additional_context_from_env()
+    database_id = os.environ.get("NOTION_DATABASE_ID")
+
+    if not database_id:
+        print("Error: NOTION_DATABASE_ID not set in environment variables.")
+        sys.exit(1)
+
+    if phase == 'debug':
+        if len(sys.argv) < 3:
+            print("For debug mode, please provide the phase file to load (1, 2, 3, or 4)")
+            sys.exit(1)
+        content_data = load_data('page_content.pkl')
+        tags_data = load_data('page_tags.pkl')
+        print(f"Debug mode: Loaded page_content.pkl and page_tags.pkl")
+        print_debug_data(content_data, tags_data)
+        sys.exit(0)
+
+    if phase in ['1', '2', '3', '4']:
+        run_phase(phase, tags, additional_context, database_id)
+    elif phase == 'all':
+        for p in ['1', '2', '3', '4']:
+            run_phase(p, tags, additional_context, database_id)
     else:
-        print("Invalid phase. Please use 1, 2, 3, 4, or debug.")
+        print("Invalid phase. Please use 1, 2, 3, 4, all, or debug.")
 
 if __name__ == "__main__":
     main()
