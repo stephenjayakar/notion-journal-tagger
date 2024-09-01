@@ -7,6 +7,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from notion_client import Client as NotionClient
 import json
+from datetime import datetime
 
 load_dotenv()
 
@@ -35,14 +36,23 @@ def read_tags_from_env() -> List[str]:
 def read_additional_context_from_env() -> str:
     return os.environ.get("ADDITIONAL_CONTEXT", "")
 
-def get_database_pages(database_id: str) -> List[dict]:
+def get_database_pages(database_id: str, start_date: Optional[str] = None) -> List[dict]:
     pages = []
     start_cursor = None
+    filter_condition = {}
+    if start_date:
+        filter_condition = {
+            "property": "Written on",
+            "date": {
+                "on_or_after": start_date
+            }
+        }
     while True:
         response = notion_client.databases.query(
             database_id=database_id,
             start_cursor=start_cursor,
-            page_size=100
+            page_size=100,
+            filter=filter_condition
         )
         pages.extend([{'id': page['id'], 'title': page['properties']['Name']['title'][0]['plain_text'] if page['properties']['Name']['title'] else ''} for page in response['results']])
         if not response.get('has_more'):
@@ -146,9 +156,18 @@ def print_debug_data(content_data: List[PageContent], tags_data: List[PageTags])
         print(f"Written: {tags.written}")
         print("---")
 
-def run_phase(phase: str, tags: List[str], additional_context: str, database_id: str):
+def clear_output_files():
+    output_dir = 'output'
+    for file in os.listdir(output_dir):
+        file_path = os.path.join(output_dir, file)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    print("All files in 'output' directory have been cleared.")
+
+def run_phase(phase: str, tags: List[str], additional_context: str, database_id: str, start_date: Optional[str] = None):
     if phase == '1':
-        pages = get_database_pages(database_id)
+        clear_output_files()
+        pages = get_database_pages(database_id, start_date)
         content_data = [PageContent(page['id'], title=page['title']) for page in pages]
         tags_data = [PageTags(page['id']) for page in pages]
         save_data(content_data, 'page_content.pkl')
@@ -215,7 +234,7 @@ def run_phase(phase: str, tags: List[str], additional_context: str, database_id:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python main.py <phase>")
+        print("Usage: python main.py <phase> [YYYY-MM-DD]")
         sys.exit(1)
 
     phase = sys.argv[1]
@@ -226,6 +245,14 @@ def main():
     if not database_id:
         print("Error: NOTION_DATABASE_ID not set in environment variables.")
         sys.exit(1)
+
+    start_date = None
+    if len(sys.argv) > 2 and (phase == '1' or phase == 'all'):
+        try:
+            start_date = datetime.strptime(sys.argv[2], "%Y-%m-%d").strftime("%Y-%m-%d")
+        except ValueError:
+            print("Invalid date format. Please use YYYY-MM-DD.")
+            sys.exit(1)
 
     if phase == 'debug':
         if len(sys.argv) < 3:
@@ -238,10 +265,10 @@ def main():
         sys.exit(0)
 
     if phase in ['1', '2', '3', '4']:
-        run_phase(phase, tags, additional_context, database_id)
+        run_phase(phase, tags, additional_context, database_id, start_date)
     elif phase == 'all':
         for p in ['1', '2', '3', '4']:
-            run_phase(p, tags, additional_context, database_id)
+            run_phase(p, tags, additional_context, database_id, start_date)
     else:
         print("Invalid phase. Please use 1, 2, 3, 4, all, or debug.")
 
