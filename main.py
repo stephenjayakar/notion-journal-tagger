@@ -32,6 +32,9 @@ def read_tags_from_env() -> List[str]:
     tags_string = os.environ.get("TAGS", "")
     return [tag.strip() for tag in tags_string.split(',') if tag.strip()]
 
+def read_additional_context_from_env() -> str:
+    return os.environ.get("ADDITIONAL_CONTEXT", "")
+
 def get_database_pages(database_id: str) -> List[dict]:
     pages = []
     start_cursor = None
@@ -71,9 +74,9 @@ def load_data(filename: str) -> List:
     with open(os.path.join('output', filename), 'rb') as f:
         return pickle.load(f)
 
-def get_tags_from_ai(title: str, content: str, tags: List[str]) -> List[str]:
+def get_tags_from_ai(title: str, content: str, tags: List[str], additional_context: str) -> List[str]:
     system_message = "You are an AI assistant that labels content with appropriate tags. Please analyze the given title and content and assign relevant tags from the provided list. You can use multiple tags if appropriate."
-    user_message = f"Title: {title}\n\nContent to label:\n\n{content}\n\nAvailable tags: {', '.join(tags)}\n\nPlease label this content with appropriate tags."
+    user_message = f"Title: {title}\n\nContent to label:\n\n{content}\n\nAdditional context: {additional_context}\n\nAvailable tags: {', '.join(tags)}\n\nPlease label this content with appropriate tags."
 
     messages = [
         {"role": "system", "content": system_message},
@@ -136,6 +139,7 @@ def main():
 
     phase = sys.argv[1]
     tags = read_tags_from_env()
+    additional_context = read_additional_context_from_env()
     database_id = os.environ.get("NOTION_DATABASE_ID")
 
     if not database_id:
@@ -174,7 +178,7 @@ def main():
         tags_data = load_data('page_tags.pkl')
         for i, (page_content, page_tags) in enumerate(zip(content_data, tags_data)):
             if page_content.content:
-                new_tags = get_tags_from_ai(page_content.title, page_content.content, tags)
+                new_tags = get_tags_from_ai(page_content.title, page_content.content, tags, additional_context)
                 tags_data[i].new_tags = new_tags
             print(f"Processed {i+1}/{len(content_data)} pages")
         save_data(tags_data, 'page_tags.pkl')
