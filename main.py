@@ -19,6 +19,7 @@ notion_client = NotionClient(auth=os.environ.get("NOTION_API_KEY"))
 @dataclass
 class PageContent:
     page_id: str
+    title: Optional[str] = None
     content: Optional[str] = None
 
 @dataclass
@@ -31,7 +32,7 @@ def read_tags_from_env() -> List[str]:
     tags_string = os.environ.get("TAGS", "")
     return [tag.strip() for tag in tags_string.split(',') if tag.strip()]
 
-def get_database_pages(database_id: str) -> List[str]:
+def get_database_pages(database_id: str) -> List[dict]:
     pages = []
     start_cursor = None
     while True:
@@ -40,7 +41,7 @@ def get_database_pages(database_id: str) -> List[str]:
             start_cursor=start_cursor,
             page_size=100
         )
-        pages.extend([page['id'] for page in response['results']])
+        pages.extend([{'id': page['id'], 'title': page['properties']['Name']['title'][0]['plain_text'] if page['properties']['Name']['title'] else ''} for page in response['results']])
         if not response.get('has_more'):
             break
         start_cursor = response.get('next_cursor')
@@ -70,9 +71,9 @@ def load_data(filename: str) -> List:
     with open(os.path.join('output', filename), 'rb') as f:
         return pickle.load(f)
 
-def get_tags_from_ai(content: str, tags: List[str]) -> List[str]:
-    system_message = "You are an AI assistant that labels content with appropriate tags. Please analyze the given content and assign relevant tags from the provided list. You can use multiple tags if appropriate."
-    user_message = f"Content to label:\n\n{content}\n\nAvailable tags: {', '.join(tags)}\n\nPlease label this content with appropriate tags."
+def get_tags_from_ai(title: str, content: str, tags: List[str]) -> List[str]:
+    system_message = "You are an AI assistant that labels content with appropriate tags. Please analyze the given title and content and assign relevant tags from the provided list. You can use multiple tags if appropriate."
+    user_message = f"Title: {title}\n\nContent to label:\n\n{content}\n\nAvailable tags: {', '.join(tags)}\n\nPlease label this content with appropriate tags."
 
     messages = [
         {"role": "system", "content": system_message},
@@ -122,6 +123,7 @@ def update_notion_page(page_id: str, tags: List[str]):
 def print_debug_data(content_data: List[PageContent], tags_data: List[PageTags]):
     for content, tags in zip(content_data, tags_data):
         print(f"Page ID: {content.page_id}")
+        print(f"Title: {content.title}")
         print(f"Content: {content.content[:100]}..." if content.content else "No content")
         print(f"New Tags: {tags.new_tags}")
         print(f"Written: {tags.written}")
@@ -151,9 +153,9 @@ def main():
         sys.exit(0)
 
     if phase == '1':
-        page_ids = get_database_pages(database_id)
-        content_data = [PageContent(page_id) for page_id in page_ids]
-        tags_data = [PageTags(page_id) for page_id in page_ids]
+        pages = get_database_pages(database_id)
+        content_data = [PageContent(page['id'], title=page['title']) for page in pages]
+        tags_data = [PageTags(page['id']) for page in pages]
         save_data(content_data, 'page_content.pkl')
         save_data(tags_data, 'page_tags.pkl')
         print(f"Phase 1 complete. {len(content_data)} pages saved.")
@@ -172,7 +174,7 @@ def main():
         tags_data = load_data('page_tags.pkl')
         for i, (page_content, page_tags) in enumerate(zip(content_data, tags_data)):
             if page_content.content:
-                new_tags = get_tags_from_ai(page_content.content, tags)
+                new_tags = get_tags_from_ai(page_content.title, page_content.content, tags)
                 tags_data[i].new_tags = new_tags
             print(f"Processed {i+1}/{len(content_data)} pages")
         save_data(tags_data, 'page_tags.pkl')

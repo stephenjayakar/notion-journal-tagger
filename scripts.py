@@ -3,7 +3,7 @@ import os
 from typing import List
 from main import (
     PageContent, PageTags, read_tags_from_env, get_notion_page_content,
-    get_tags_from_ai, update_notion_page, notion_client
+    get_tags_from_ai, update_notion_page
 )
 
 def process_single_page(page_id: str):
