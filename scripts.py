@@ -29,7 +29,7 @@ def process_single_page(page_id: str):
     if content_data.content:
         new_tags = get_tags_from_ai(content_data.title, content_data.content, tags, additional_context)
         tags_data.new_tags = new_tags
-    print(f"Phase 3 complete. Tags assigned to page {page_id}.")
+    print(f"Phase 3 complete. Tags assigned to page {page_id}: {new_tags}.")
 
     # Phase 4: Update the Notion page with the new tags
     if tags_data.new_tags:

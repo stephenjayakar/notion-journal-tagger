@@ -78,13 +78,16 @@ def load_data(filename: str) -> List:
         return pickle.load(f)
 
 def get_tags_from_ai(title: str, content: str, tags: List[str], additional_context: str) -> List[str]:
-    system_message = """You are an AI assistant that labels content with appropriate tags. Please analyze the given title and content and assign relevant tags from the provided list. Be conservative in your tag selection:
+    system_message = f"""You are an AI assistant that labels content with appropriate tags. Please analyze the given title and content and assign relevant tags from the provided list. Be conservative in your tag selection:
     - Only assign tags if there's a medium to strong correlation with the title and content.
     - It's better to assign fewer tags or even no tags than to assign irrelevant ones.
     - Consider the context and overall theme of the content, not just keyword matches.
-    - If you're unsure about a tag, it's better to omit it."""
+    - If you're unsure about a tag, it's better to omit it.
 
-    user_message = f"Title: {title}\n\nContent to label:\n\n{content}\n\nAdditional context: {additional_context}\n\nAvailable tags: {', '.join(tags)}\n\nPlease label this content with appropriate tags, being cautious and selective in your choices."
+    Additional context to help understand the entries: {additional_context}
+    """
+
+    user_message = f"Title: {title}\n\nContent to label:\n\n{content}\n\nAvailable tags: {', '.join(tags)}\n\nPlease label this content with appropriate tags, being cautious and selective in your choices."
 
     messages = [
         {"role": "system", "content": system_message},
