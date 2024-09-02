@@ -18,6 +18,8 @@ Requirements (you can see this in the .env.example file)
 * Come up with your list of tags
 * Come up with additional context that would be relevant for your journal entry
 
+Also, after you create your Notion private integration, you have to give it access to page with your database on it. [Here's](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions) how to do that.
+
 Once you have these things, put them in the `.env` file.
 
 Then, you can invoke the script(s) as follows:
